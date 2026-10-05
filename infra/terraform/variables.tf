@@ -10,18 +10,21 @@ variable "monthly_budget_usd" {
 
 variable "alert_email" {
   type        = string
-  description = "Where budget alerts go."
+  description = "Where budget and error alerts go."
 }
 
 variable "github_repo" {
   type        = string
-  description = "owner/name of the GitHub repo allowed to assume the CI role."
+  description = "owner/name of the GitHub repo allowed to deploy."
 }
 
-output "ci_role_arn" {
-  value = aws_iam_role.ci.arn
+variable "image_tag" {
+  type        = string
+  default     = ""
+  description = "Leave empty on first apply; set after the first image push to create the Lambda."
 }
 
-output "docs_bucket" {
-  value = aws_s3_bucket.docs.bucket
+variable "claude_model" {
+  type    = string
+  default = "claude-opus-5-5"
 }

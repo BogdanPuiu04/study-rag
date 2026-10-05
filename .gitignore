@@ -12,3 +12,4 @@ data/*
 infra/terraform/.terraform/
 *.tfstate*
 *.tfvars
+.traces/

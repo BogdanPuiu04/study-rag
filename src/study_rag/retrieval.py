@@ -44,11 +44,12 @@ class CrossEncoderReranker:
         self.model = CrossEncoder(model_name)
 
     def rerank(self, query: str, candidates: list[ScoredChunk]) -> list[ScoredChunk]:
-        if not candidates:
-            return []
-        scores = self.model.predict([(query, c.chunk.text) for c in candidates])
-        ranked = sorted(zip(candidates, scores, strict=True), key=lambda x: x[1], reverse=True)
-        return [ScoredChunk(c.chunk, float(s)) for c, s in ranked]
+        """EXERCISE 6. Re-order candidates by cross-encoder relevance, highest first.
+
+        self.model.predict(list_of_(query, passage)_pairs) returns one score per pair.
+        Return new ScoredChunks carrying the cross-encoder score. Handle [] input.
+        """
+        raise NotImplementedError("exercise 6")
 
 
 class HybridRetriever:
@@ -65,14 +66,25 @@ class HybridRetriever:
         self.store, self.embedder, self.reranker = store, embedder, reranker
         self.candidate_k, self.mode = candidate_k, mode
 
-    def retrieve(self, query: str, k: int = 5) -> list[ScoredChunk]:
+    def retrieve(self, query: str, k: int = 5, course: str | None = None) -> list[ScoredChunk]:
+        # With a course filter, over-fetch so filtering still leaves enough candidates.
+        n = self.candidate_k * (4 if course else 1)
         rankings = []
         if self.mode in {"hybrid", "vector"}:
             qvec = self.embedder.embed([query])[0]
-            rankings.append(self.store.vector_search(qvec, self.candidate_k))
+            rankings.append(self.store.vector_search(qvec, n))
         if self.mode in {"hybrid", "keyword"}:
-            rankings.append(self.store.keyword_search(query, self.candidate_k))
+            rankings.append(self.store.keyword_search(query, n))
         fused = reciprocal_rank_fusion(rankings)
+        if course:
+            fused = [sc for sc in fused if course_of(sc) == course]
+        fused = fused[: self.candidate_k]
         if self.reranker:
             fused = self.reranker.rerank(query, fused)
         return fused[:k]
+
+
+def course_of(sc: ScoredChunk) -> str:
+    """Course = first folder under data/, e.g. "machine-learning/week1.md" -> "machine-learning"."""
+    parts = sc.chunk.source.replace("\\", "/").split("/")
+    return parts[0] if len(parts) > 1 else ""

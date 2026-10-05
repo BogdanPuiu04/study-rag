@@ -7,6 +7,7 @@ requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.26",
     "pypdf>=4.0",
+    "pydantic>=2.0",
 ]
 
 [project.optional-dependencies]
@@ -16,7 +17,11 @@ local = ["sentence-transformers>=3.0"]
 pg = ["psycopg[binary]>=3.1", "pgvector>=0.3"]
 # Claude via the Claude API (ANTHROPIC_API_KEY) or Amazon Bedrock
 claude = ["anthropic[bedrock]>=0.70"]
-dev = ["pytest>=8.0", "ruff>=0.6"]
+# HTTP API (local uvicorn, or Lambda via Lambda Web Adapter)
+api = ["fastapi>=0.110", "uvicorn>=0.29"]
+# S3 index download in Lambda
+aws = ["boto3>=1.34"]
+dev = ["pytest>=8.0", "ruff>=0.6", "httpx>=0.27", "fastapi>=0.110"]
 
 [project.scripts]
 study-rag = "study_rag.cli:main"

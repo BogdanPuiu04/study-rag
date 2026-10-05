@@ -1,5 +1,6 @@
-# Phase 2 (AWS). Nothing here costs money until you `terraform apply`,
-# and the budget alarm is the first thing to create.
+# AWS deployment. Nothing here costs money until `terraform apply`.
+# Steady-state cost with no traffic: ~$0 (S3 cents, ECR ~$0.10/GB-month).
+# See infra/README.md for the two-phase bootstrap.
 
 terraform {
   required_version = ">= 1.6"
@@ -17,9 +18,15 @@ provider "aws" {
 
 data "aws_caller_identity" "current" {}
 
-# --- Cost guardrail ---------------------------------------------------------
+locals {
+  name         = "study-rag"
+  index_key    = "index/memory.pkl"
+  deploy_image = var.image_tag != ""
+}
+
+# --- Cost guardrail (create this first) -------------------------------------
 resource "aws_budgets_budget" "monthly" {
-  name         = "study-rag-monthly"
+  name         = "${local.name}-monthly"
   budget_type  = "COST"
   limit_amount = var.monthly_budget_usd
   limit_unit   = "USD"
@@ -42,74 +49,56 @@ resource "aws_budgets_budget" "monthly" {
   }
 }
 
-# --- Course material bucket -------------------------------------------------
-resource "aws_s3_bucket" "docs" {
-  bucket = "study-rag-docs-${data.aws_caller_identity.current.account_id}"
+# --- Storage: course docs + built index ---------------------------------------
+resource "aws_s3_bucket" "data" {
+  bucket = "${local.name}-data-${data.aws_caller_identity.current.account_id}"
 }
 
-resource "aws_s3_bucket_public_access_block" "docs" {
-  bucket                  = aws_s3_bucket.docs.id
+resource "aws_s3_bucket_public_access_block" "data" {
+  bucket                  = aws_s3_bucket.data.id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
 
-# --- GitHub Actions -> AWS via OIDC (no long-lived access keys) --------------
-resource "aws_iam_openid_connect_provider" "github" {
-  url            = "https://token.actions.githubusercontent.com"
-  client_id_list = ["sts.amazonaws.com"]
+resource "aws_s3_bucket_versioning" "data" {
+  # Roll back to the previous index if a re-ingest goes wrong.
+  bucket = aws_s3_bucket.data.id
+  versioning_configuration {
+    status = "Enabled"
+  }
 }
 
-data "aws_iam_policy_document" "github_trust" {
-  statement {
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-    principals {
-      type        = "Federated"
-      identifiers = [aws_iam_openid_connect_provider.github.arn]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "token.actions.githubusercontent.com:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-    # Only the main branch of this repo can assume the role.
-    condition {
-      test     = "StringLike"
-      variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:ref:refs/heads/main"]
+resource "aws_s3_bucket_lifecycle_configuration" "data" {
+  bucket = aws_s3_bucket.data.id
+  rule {
+    id     = "expire-old-index-versions"
+    status = "Enabled"
+    filter {}
+    noncurrent_version_expiration {
+      noncurrent_days = 30
     }
   }
 }
 
-resource "aws_iam_role" "ci" {
-  name               = "study-rag-ci"
-  assume_role_policy = data.aws_iam_policy_document.github_trust.json
-}
-
-# Least privilege: read/write the docs bucket, invoke Claude models only.
-data "aws_iam_policy_document" "app" {
-  statement {
-    actions   = ["s3:GetObject", "s3:PutObject", "s3:ListBucket"]
-    resources = [aws_s3_bucket.docs.arn, "${aws_s3_bucket.docs.arn}/*"]
-  }
-  statement {
-    # TODO: confirm the exact IAM actions for the Bedrock Messages-API (Mantle)
-    # endpoint in the Bedrock docs before first apply.
-    actions = [
-      "bedrock:InvokeModel",
-      "bedrock:InvokeModelWithResponseStream",
-    ]
-    resources = ["*"]
-    condition {
-      test     = "StringLike"
-      variable = "bedrock:ModelId"
-      values   = ["anthropic.*"]
-    }
+# --- Container registry --------------------------------------------------------
+resource "aws_ecr_repository" "app" {
+  name                 = local.name
+  image_tag_mutability = "MUTABLE"
+  image_scanning_configuration {
+    scan_on_push = true
   }
 }
 
-resource "aws_iam_role_policy" "ci_app" {
-  role   = aws_iam_role.ci.id
-  policy = data.aws_iam_policy_document.app.json
+resource "aws_ecr_lifecycle_policy" "app" {
+  repository = aws_ecr_repository.app.name
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep last 5 images (each ~1 GB)"
+      selection    = { tagStatus = "any", countType = "imageCountMoreThan", countNumber = 5 }
+      action       = { type = "expire" }
+    }]
+  })
 }

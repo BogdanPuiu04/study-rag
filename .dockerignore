@@ -1,0 +1,8 @@
+.venv
+.git
+.index
+.traces
+data
+infra
+tests
+**/__pycache__

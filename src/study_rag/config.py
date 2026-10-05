@@ -27,6 +27,11 @@ class Settings:
     store: str = _env("STUDY_RAG_STORE", "memory")
     database_url: str = _env("DATABASE_URL", "postgresql://rag:rag@localhost:5432/rag")
     index_path: str = _env("STUDY_RAG_INDEX", ".index/memory.pkl")
+    # If set (s3://bucket/key), the index is downloaded at startup — how Lambda gets it.
+    index_s3_uri: str = _env("STUDY_RAG_INDEX_S3", "")
+    embed_cache_path: str = _env("STUDY_RAG_EMBED_CACHE", ".index/embed_cache.pkl")
+    # JSONL file for query traces; "-" = stdout (CloudWatch in Lambda)
+    trace_path: str = _env("STUDY_RAG_TRACES", ".traces/queries.jsonl")
     # "extractive" ($0, offline), "claude" (Claude API), "bedrock" (Amazon Bedrock)
     llm: str = _env("STUDY_RAG_LLM", "extractive")
     claude_model: str = _env("STUDY_RAG_CLAUDE_MODEL", "claude-opus-5-5")

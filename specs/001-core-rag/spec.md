@@ -14,15 +14,19 @@ can't point me to the lecture to re-read.
 
 ## Acceptance criteria
 - [x] Ingest md/txt/pdf; course name derived from folder.
-- [x] Chunks carry heading path; size/overlap configurable.
-- [x] Hybrid retrieval (vector + BM25, RRF) with optional cross-encoder rerank.
-- [x] Generation via Claude API or Bedrock; offline extractive mode for CI.
-- [x] Eval reports recall@1, recall@k, MRR per retrieval mode; CI gate on hybrid recall@5 ≥ 0.8.
+- [ ] Chunks carry heading path; size/overlap configurable.
+- [ ] Hybrid retrieval (vector + BM25, RRF) with optional cross-encoder rerank.
+- [ ] Generation via Claude API or Bedrock; offline extractive mode for CI.
+- [ ] Eval reports recall@1, recall@k, MRR per retrieval mode; CI gate on hybrid recall@5 ≥ 0.8.
 - [ ] Answer faithfulness eval (LLM-as-judge) on a small sample, run manually (costs tokens).
-- [ ] Per-course filter (`--course machine-learning`).
+- [x] Per-course filter (`--course machine-learning`).
+- [x] Per-query JSONL traces: retrieved chunks, scores, stage timings, token usage.
+- [x] Embedding cache keyed by (model, text).
+- [x] HTTP API; deployable to Lambda behind an IAM-authenticated Function URL.
 
 ## Non-goals (for now)
 - Multi-user auth, web UI, chat history.
+- Managed vector DB (OpenSearch, Aurora): cost at idle isn't justified at this corpus size.
 
 ## Constraints
 - Default path must run at $0 with no network access.

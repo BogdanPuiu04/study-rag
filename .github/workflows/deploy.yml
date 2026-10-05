@@ -1,0 +1,58 @@
+name: deploy
+
+# Manual only: every deploy is a deliberate action (and AWS costs are yours).
+on:
+  workflow_dispatch:
+    inputs:
+      rebuild_index:
+        description: "Re-ingest data/sample and upload the index"
+        type: boolean
+        default: true
+
+permissions:
+  id-token: write # OIDC token for AWS
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build and upload index
+        if: inputs.rebuild_index
+        env:
+          STUDY_RAG_EMBEDDER: hf
+          STUDY_RAG_INDEX: .index/memory.pkl
+        run: |
+          pip install uv && uv venv
+          uv pip install torch --index-url https://download.pytorch.org/whl/cpu
+          uv pip install -e ".[local]"
+          .venv/bin/study-rag ingest data/sample
+          aws s3 cp .index/memory.pkl "s3://${{ vars.DATA_BUCKET }}/index/memory.pkl"
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+
+      - name: Build and push image
+        id: image
+        run: |
+          IMAGE="${{ steps.ecr.outputs.registry }}/study-rag:${GITHUB_SHA::12}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "uri=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Roll Lambda to the new image
+        run: |
+          aws lambda update-function-code --function-name study-rag \
+            --image-uri "${{ steps.image.outputs.uri }}"
+          aws lambda wait function-updated --function-name study-rag
