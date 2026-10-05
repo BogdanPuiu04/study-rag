@@ -1,5 +1,19 @@
 # study-rag
 
+> **TL;DR:** A RAG system over my AI master's course materials, built like a production
+> service rather than a notebook demo.
+> - **Measured:** retrieval scored with recall@k / MRR against a golden set on every PR;
+>   answers graded for faithfulness by an LLM judge weekly. See [Results](#results).
+> - **Hand-built core:** chunking, BM25, vector search, rank fusion, reranking and the
+>   grounded prompt are written from scratch (no LangChain), so every choice is explainable.
+> - **Operated:** per-query traces, cost per answer in USD, a CloudWatch dashboard and alarms,
+>   a feedback loop that turns 👎 answers into new test cases.
+> - **Deployed on AWS for ~$0 at idle:** Lambda + S3 via Terraform, IAM-authenticated
+>   endpoint, OIDC deploys with no stored keys, reindexing on document upload.
+>
+> **Stack:** Python · Claude (Anthropic API / Amazon Bedrock) · sentence-transformers (BGE,
+> cross-encoder) · FastAPI · AWS Lambda, S3, CloudWatch · Terraform · GitHub Actions
+
 A retrieval-augmented study assistant for my AI master's courses. Point it at
 lecture notes, slides and papers, ask questions, and get answers **grounded in the
 course material with citations**, not the model's general knowledge.

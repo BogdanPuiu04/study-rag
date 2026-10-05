@@ -14,3 +14,5 @@ infra/terraform/.terraform/
 *.tfvars
 .traces/
 infra/terraform/backend.hcl
+# Personal study notes, never published
+docs/private/
