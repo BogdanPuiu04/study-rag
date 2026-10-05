@@ -1,0 +1,51 @@
+name: answer-eval
+
+# Weekly LLM-as-judge run: catches quality drift that no unit test can (prompt edits,
+# model updates, retrieval changes). Costs tokens, so it's capped and scheduled.
+on:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Max answerable questions to judge"
+        default: "10"
+
+jobs:
+  judge:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      STUDY_RAG_LLM: claude
+    steps:
+      - name: Skip without API key
+        id: gate
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "No ANTHROPIC_API_KEY secret: skipping." >> "$GITHUB_STEP_SUMMARY"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.run == 'true'
+      - uses: astral-sh/setup-uv@v5
+        if: steps.gate.outputs.run == 'true'
+      - name: Evaluate answers
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          mkdir -p results
+          uv sync --frozen --extra dev --extra claude
+          uv run --frozen study-rag ingest data/sample
+          uv run --frozen study-rag eval-answers eval/golden.jsonl \
+            --limit "${{ inputs.limit || '10' }}" --out results/answers.jsonl | tee results/summary.json
+          {
+            echo "### Answer eval ($(date -u +%F), prompt $(sha256sum prompts/answer_system.md | cut -c1-12))"
+            echo '```json'; cat results/summary.json; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: steps.gate.outputs.run == 'true'
+        with:
+          name: answer-eval-${{ github.run_id }}
+          path: results/
+          retention-days: 90

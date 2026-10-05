@@ -68,10 +68,13 @@ def test_trace_written_as_jsonl(tmp_path):
 
 class FakeRAG:
     class store:  # noqa: N801
+        meta = {"embedder": "hash"}
+
         def __len__(self):
             return 3
 
     store = store()
+    prompt_version = "abc"
 
     def ask(self, question, course=None):
         src = ScoredChunk(Chunk("c1", "d", "t", "ml/w1.md", "Bias"), 0.9)

@@ -1,0 +1,38 @@
+name: docker
+
+# Build the Lambda image and smoke-test it, whenever something that goes into it changes.
+on:
+  pull_request:
+    paths: [Dockerfile, pyproject.toml, uv.lock, "src/**", "prompts/**"]
+  push:
+    branches: [main]
+    paths: [Dockerfile, pyproject.toml, uv.lock, "src/**", "prompts/**"]
+
+jobs:
+  build-and-smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: study-rag:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Image size
+        run: docker image ls study-rag:ci --format '{{.Size}}' | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Start container (no index, offline extractive LLM)
+        run: docker run -d --name app -p 8080:8080 -e STUDY_RAG_LLM=extractive study-rag:ci
+      - name: Smoke test /health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS localhost:8080/health; then echo; exit 0; fi
+            sleep 2
+          done
+          docker logs app; exit 1
+      - name: Container logs
+        if: always()
+        run: docker logs app || true

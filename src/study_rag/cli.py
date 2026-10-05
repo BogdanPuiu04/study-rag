@@ -35,7 +35,20 @@ def main(argv: list[str] | None = None) -> int:
     p_ans.add_argument("--judge-model", default="claude-opus-5-5")
     p_ans.add_argument("--out", default=".traces/answer_eval.jsonl")
 
+    p_fb = sub.add_parser("feedback-candidates", help="👎-rated questions -> golden candidates")
+    p_fb.add_argument("--traces", default=None, help="defaults to STUDY_RAG_TRACES")
+    p_fb.add_argument("--out", default="eval/candidates.jsonl")
+
     args = parser.parse_args(argv)
+
+    if args.cmd == "feedback-candidates":
+        from study_rag.eval.feedback import export_candidates
+
+        n = export_candidates(args.traces or Settings().trace_path, args.out)
+        print(f"Wrote {n} candidates to {args.out}: label `source` and `must_contain`, "
+              "then move them into eval/golden.jsonl")
+        return 0
+
     rag = StudyRAG.from_settings(Settings())
 
     if args.cmd == "ingest":
@@ -45,7 +58,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "ask":
         answer = rag.ask(args.question, course=args.course)
-        print(answer.text, "\n\nSources:")
+        print(answer.text, f"\n\n(trace {answer.trace_id})\nSources:")
         for i, sc in enumerate(answer.sources, start=1):
             section = f" — {sc.chunk.section}" if sc.chunk.section else ""
             print(f"  [{i}] {sc.chunk.source}{section}  (score {sc.score:.3f})")

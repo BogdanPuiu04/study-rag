@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import pickle
+import json
+from dataclasses import asdict
 from pathlib import Path
 
 import numpy as np
@@ -20,6 +21,7 @@ class MemoryStore:
         self.path = path
         self.chunks: list[Chunk] = []
         self.vectors: np.ndarray | None = None  # shape (n_chunks, dim), L2-normalised rows
+        self.meta: dict = {}  # how the index was built (set by the pipeline)
 
     def __len__(self) -> int:
         return len(self.chunks)
@@ -52,6 +54,12 @@ class MemoryStore:
         raise NotImplementedError("exercise 3b")
 
     # --- plumbing -------------------------------------------------------------
+    # Persistence format: one .npz with the vectors plus JSON strings for chunks and
+    # metadata. No pickle — loading a pickle executes code, so a tampered index file
+    # in S3 would be remote code execution. Keyword-index structures aren't saved:
+    # load() rebuilds them by replaying add(), which keeps the format independent
+    # of how BM25 is implemented.
+
     def clear(self) -> None:
         self.__init__(self.path)
 
@@ -59,14 +67,27 @@ class MemoryStore:
         if not self.path:
             return
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
-        with open(self.path, "wb") as f:
-            pickle.dump(self.__dict__, f)
+        dim = self.meta.get("dim", 0)
+        vectors = self.vectors if self.vectors is not None else np.zeros((0, dim), np.float32)
+        tmp = Path(f"{self.path}.tmp.npz")
+        np.savez_compressed(
+            tmp,
+            vectors=vectors.astype(np.float32),
+            chunks=np.array(json.dumps([asdict(c) for c in self.chunks])),
+            meta=np.array(json.dumps(self.meta)),
+        )
+        tmp.replace(self.path)  # atomic: a crash mid-write never leaves a half index
 
     @classmethod
     def load(cls, path: str) -> MemoryStore | None:
         if not Path(path).exists():
             return None
+        with np.load(path, allow_pickle=False) as data:
+            chunks = [Chunk(**c) for c in json.loads(str(data["chunks"]))]
+            meta = json.loads(str(data["meta"]))
+            vectors = data["vectors"]
         store = cls(path)
-        with open(path, "rb") as f:
-            store.__dict__.update(pickle.load(f))
+        store.meta = meta
+        if chunks:
+            store.add(chunks, vectors)
         return store

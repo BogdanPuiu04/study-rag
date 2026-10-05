@@ -36,7 +36,7 @@ resource "aws_iam_role" "deploy" {
   assume_role_policy = data.aws_iam_policy_document.github_trust.json
 }
 
-# Deploy role: push image, upload index, roll the function. It cannot call Claude.
+# Deploy role: push image and roll the function. No data access, cannot call Claude.
 data "aws_iam_policy_document" "deploy" {
   statement {
     sid       = "EcrAuth"
@@ -54,11 +54,6 @@ data "aws_iam_policy_document" "deploy" {
       "ecr:BatchGetImage",
     ]
     resources = [aws_ecr_repository.app.arn]
-  }
-  statement {
-    sid       = "UploadIndex"
-    actions   = ["s3:PutObject"]
-    resources = ["${aws_s3_bucket.data.arn}/${local.index_key}"]
   }
   statement {
     sid       = "UpdateFunction"

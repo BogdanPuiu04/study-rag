@@ -23,6 +23,14 @@ can't point me to the lecture to re-read.
 - [x] Per-query JSONL traces: retrieved chunks, scores, stage timings, token usage.
 - [x] Embedding cache keyed by (model, text).
 - [x] HTTP API; deployable to Lambda behind an IAM-authenticated Function URL.
+- [x] Index records how it was built; mismatched embedder config fails at startup.
+- [x] Index persisted without pickle; atomic writes.
+- [x] Cost per query (USD) in traces and CloudWatch; 24h cost alarm.
+- [x] Feedback endpoint; negative feedback exported as golden-set candidates.
+- [x] Streaming endpoint (SSE).
+- [x] Upload to S3 triggers reindex; warm instances reload the new index.
+- [ ] Streaming generation with Claude (exercise 5d).
+- [ ] Prompt-injection test + hardened prompt (exercise 8).
 
 ## Non-goals (for now)
 - Multi-user auth, web UI, chat history.

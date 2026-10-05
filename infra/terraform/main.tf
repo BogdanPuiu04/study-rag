@@ -3,10 +3,13 @@
 # See infra/README.md for the two-phase bootstrap.
 
 terraform {
-  required_version = ">= 1.6"
+  required_version = ">= 1.10"
   required_providers {
     aws = { source = "hashicorp/aws", version = "~> 5.0" }
   }
+  # Remote state in S3 (created by infra/bootstrap). Values come from backend.hcl:
+  #   terraform init -backend-config=backend.hcl
+  backend "s3" {}
 }
 
 provider "aws" {
@@ -20,7 +23,9 @@ data "aws_caller_identity" "current" {}
 
 locals {
   name         = "study-rag"
-  index_key    = "index/memory.pkl"
+  docs_prefix  = "docs/"
+  index_key    = "index/index.npz"
+  cache_key    = "index/embed_cache.npz"
   deploy_image = var.image_tag != ""
 }
 

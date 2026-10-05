@@ -24,6 +24,12 @@ variable "image_tag" {
   description = "Leave empty on first apply; set after the first image push to create the Lambda."
 }
 
+variable "daily_llm_cost_alarm_usd" {
+  type        = number
+  default     = 1
+  description = "Alert when Claude token spend in the last 24h exceeds this."
+}
+
 variable "claude_model" {
   type    = string
   default = "claude-opus-5-5"

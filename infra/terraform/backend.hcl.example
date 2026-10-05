@@ -1,0 +1,7 @@
+# Copy to backend.hcl (git-ignored) with the values from `terraform output backend_config`
+# in infra/bootstrap, then: terraform init -backend-config=backend.hcl
+bucket       = "study-rag-tfstate-<account-id>"
+key          = "study-rag/terraform.tfstate"
+region       = "us-east-1"
+encrypt      = true
+use_lockfile = true # S3-native state locking (Terraform >= 1.10), no DynamoDB table

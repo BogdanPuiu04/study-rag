@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import psycopg
 from pgvector.psycopg import register_vector
+from psycopg.types.json import Jsonb
 
 from study_rag.models import Chunk, ScoredChunk
 
@@ -22,6 +23,10 @@ CREATE TABLE IF NOT EXISTS chunks (
 CREATE INDEX IF NOT EXISTS chunks_embedding_hnsw
     ON chunks USING hnsw (embedding vector_cosine_ops);
 CREATE INDEX IF NOT EXISTS chunks_tsv_gin ON chunks USING gin (tsv);
+CREATE TABLE IF NOT EXISTS index_meta (
+    id   int PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    meta jsonb NOT NULL
+);
 """
 
 _COLS = "chunk_id, doc_id, source, section, position, text"
@@ -73,8 +78,22 @@ class PgVectorStore:
         ).fetchall()
         return [_row_to_scored(r) for r in rows]
 
+    @property
+    def meta(self) -> dict:
+        row = self.conn.execute("SELECT meta FROM index_meta WHERE id = 1").fetchone()
+        return row[0] if row else {}
+
+    @meta.setter
+    def meta(self, value: dict) -> None:
+        self.conn.execute(
+            "INSERT INTO index_meta (id, meta) VALUES (1, %s) "
+            "ON CONFLICT (id) DO UPDATE SET meta = EXCLUDED.meta",
+            (Jsonb(value),),
+        )
+
     def clear(self) -> None:
         self.conn.execute("TRUNCATE chunks")
+        self.conn.execute("DELETE FROM index_meta")
 
     def save(self) -> None:
         pass  # autocommit

@@ -2,12 +2,12 @@
 
 Keyed by sha256(model name + text), so changing the model invalidates naturally.
 Re-ingesting after editing one lecture only embeds the chunks that changed.
+Stored as .npz (keys + vectors), never pickle.
 """
 
 from __future__ import annotations
 
 import hashlib
-import pickle
 from pathlib import Path
 
 import numpy as np
@@ -21,8 +21,8 @@ class CachedEmbedder:
         self.dim = inner.dim
         self._cache: dict[str, np.ndarray] = {}
         if self.path.exists():
-            with open(self.path, "rb") as f:
-                self._cache = pickle.load(f)
+            with np.load(self.path, allow_pickle=False) as data:
+                self._cache = dict(zip(data["keys"].tolist(), data["vectors"], strict=True))
         self.hits = self.misses = 0
 
     def _key(self, text: str) -> str:
@@ -41,6 +41,10 @@ class CachedEmbedder:
         return np.stack([self._cache[k] for k in keys])
 
     def save(self) -> None:
+        if not self._cache:
+            return
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.path, "wb") as f:
-            pickle.dump(self._cache, f)
+        keys = list(self._cache)
+        tmp = self.path.with_suffix(".tmp.npz")
+        np.savez(tmp, keys=np.array(keys), vectors=np.stack([self._cache[k] for k in keys]))
+        tmp.replace(self.path)

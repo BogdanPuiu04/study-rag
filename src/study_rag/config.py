@@ -26,10 +26,13 @@ class Settings:
     # "memory" or "pgvector"
     store: str = _env("STUDY_RAG_STORE", "memory")
     database_url: str = _env("DATABASE_URL", "postgresql://rag:rag@localhost:5432/rag")
-    index_path: str = _env("STUDY_RAG_INDEX", ".index/memory.pkl")
+    index_path: str = _env("STUDY_RAG_INDEX", ".index/index.npz")
     # If set (s3://bucket/key), the index is downloaded at startup — how Lambda gets it.
     index_s3_uri: str = _env("STUDY_RAG_INDEX_S3", "")
-    embed_cache_path: str = _env("STUDY_RAG_EMBED_CACHE", ".index/embed_cache.pkl")
+    embed_cache_path: str = _env("STUDY_RAG_EMBED_CACHE", ".index/embed_cache.npz")
+    # AWS reindexing: where course files are uploaded, and where the embedding cache lives.
+    docs_s3_uri: str = _env("STUDY_RAG_DOCS_S3", "")
+    cache_s3_uri: str = _env("STUDY_RAG_CACHE_S3", "")
     # JSONL file for query traces; "-" = stdout (CloudWatch in Lambda)
     trace_path: str = _env("STUDY_RAG_TRACES", ".traces/queries.jsonl")
     # "extractive" ($0, offline), "claude" (Claude API), "bedrock" (Amazon Bedrock)

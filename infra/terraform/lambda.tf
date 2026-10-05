@@ -1,4 +1,4 @@
-# --- Lambda runtime role: read the index, call Claude, write logs. Nothing else.
+# --- Lambda runtime role: read docs, read/write index + cache, call Claude, write logs.
 data "aws_iam_policy_document" "lambda_trust" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -16,9 +16,27 @@ resource "aws_iam_role" "lambda" {
 
 data "aws_iam_policy_document" "lambda" {
   statement {
-    sid       = "ReadIndex"
+    sid       = "ListDocs"
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.data.arn]
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values   = ["${local.docs_prefix}*"]
+    }
+  }
+  statement {
+    sid       = "ReadDocs"
     actions   = ["s3:GetObject"]
-    resources = ["${aws_s3_bucket.data.arn}/${local.index_key}"]
+    resources = ["${aws_s3_bucket.data.arn}/${local.docs_prefix}*"]
+  }
+  statement {
+    sid     = "ReadWriteIndex"
+    actions = ["s3:GetObject", "s3:PutObject"]
+    resources = [
+      "${aws_s3_bucket.data.arn}/${local.index_key}",
+      "${aws_s3_bucket.data.arn}/${local.cache_key}",
+    ]
   }
   statement {
     sid = "InvokeClaude"
@@ -42,7 +60,7 @@ resource "aws_iam_role_policy" "lambda" {
   policy = data.aws_iam_policy_document.lambda.json
 }
 
-# --- Logs + alarm ----------------------------------------------------------------
+# --- Logs + alerts -----------------------------------------------------------------
 resource "aws_cloudwatch_log_group" "lambda" {
   name              = "/aws/lambda/${local.name}"
   retention_in_days = 14 # logs cost money forever by default
@@ -58,7 +76,7 @@ resource "aws_sns_topic_subscription" "email" {
   endpoint  = var.alert_email
 }
 
-# --- The function (created once an image has been pushed; see infra/README.md) ----
+# --- The function (created once an image has been pushed; see infra/README.md) ------
 resource "aws_lambda_function" "app" {
   count         = local.deploy_image ? 1 : 0
   function_name = local.name
@@ -67,13 +85,16 @@ resource "aws_lambda_function" "app" {
   image_uri     = "${aws_ecr_repository.app.repository_url}:${var.image_tag}"
   architectures = ["x86_64"]
   memory_size   = 2048 # torch + two small models; also buys CPU (Lambda scales CPU with memory)
-  timeout       = 60
+  timeout       = 300  # reindexing a semester of PDFs on CPU; queries take seconds
 
   environment {
     variables = {
       STUDY_RAG_INDEX_S3     = "s3://${aws_s3_bucket.data.bucket}/${local.index_key}"
+      STUDY_RAG_DOCS_S3      = "s3://${aws_s3_bucket.data.bucket}/${local.docs_prefix}"
+      STUDY_RAG_CACHE_S3     = "s3://${aws_s3_bucket.data.bucket}/${local.cache_key}"
       STUDY_RAG_LLM          = "bedrock"
       STUDY_RAG_CLAUDE_MODEL = var.claude_model
+      AWS_LWA_INVOKE_MODE    = "response_stream" # lets /ask/stream stream through the URL
     }
   }
 
@@ -90,8 +111,33 @@ resource "aws_lambda_function_url" "app" {
   count              = local.deploy_image ? 1 : 0
   function_name      = aws_lambda_function.app[0].function_name
   authorization_type = "AWS_IAM"
+  invoke_mode        = "RESPONSE_STREAM"
 }
 
+# --- Upload under docs/ -> reindex ------------------------------------------------------
+resource "aws_lambda_permission" "s3_invoke" {
+  count          = local.deploy_image ? 1 : 0
+  statement_id   = "AllowS3Invoke"
+  action         = "lambda:InvokeFunction"
+  function_name  = aws_lambda_function.app[0].function_name
+  principal      = "s3.amazonaws.com"
+  source_arn     = aws_s3_bucket.data.arn
+  source_account = data.aws_caller_identity.current.account_id
+}
+
+resource "aws_s3_bucket_notification" "docs" {
+  count  = local.deploy_image ? 1 : 0
+  bucket = aws_s3_bucket.data.id
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.app[0].arn
+    events              = ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"]
+    # Only docs/: the index is written to index/, so reindexing can't trigger itself.
+    filter_prefix = local.docs_prefix
+  }
+  depends_on = [aws_lambda_permission.s3_invoke]
+}
+
+# --- Alarms --------------------------------------------------------------------------
 resource "aws_cloudwatch_metric_alarm" "errors" {
   count               = local.deploy_image ? 1 : 0
   alarm_name          = "${local.name}-errors"
@@ -105,4 +151,23 @@ resource "aws_cloudwatch_metric_alarm" "errors" {
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
   alarm_actions       = [aws_sns_topic.alerts.arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "daily_llm_cost" {
+  # App-level cost from token usage (StudyRAG/CostUSD, emitted via EMF): reacts within
+  # an hour, unlike AWS Budgets which lags by up to a day.
+  alarm_name          = "${local.name}-llm-cost-24h"
+  evaluation_periods  = 1
+  threshold           = var.daily_llm_cost_alarm_usd
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  metric_query {
+    id          = "cost"
+    expression  = "SUM(SEARCH('{StudyRAG,Model} MetricName=\"CostUSD\"', 'Sum', 86400))"
+    label       = "LLM cost (USD, 24h)"
+    return_data = true
+    period      = 86400
+  }
 }

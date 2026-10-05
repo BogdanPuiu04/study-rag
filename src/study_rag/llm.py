@@ -7,7 +7,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Protocol
 
@@ -19,6 +21,15 @@ PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 def load_prompt(name: str) -> str:
     text = (PROMPTS_DIR / f"{name}.md").read_text(encoding="utf-8")
     return re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL).strip()
+
+
+def prompt_version(name: str) -> str:
+    """Short content hash of a prompt file, recorded in every trace, so a quality
+    change can be tied to the exact prompt that produced it."""
+    try:
+        return hashlib.sha256(load_prompt(name).encode()).hexdigest()[:12]
+    except FileNotFoundError:
+        return "missing"
 
 
 def cited_indices(answer: str) -> set[int]:
@@ -41,19 +52,31 @@ def build_user_message(question: str, chunks: list[ScoredChunk]) -> str:
 
 class LLM(Protocol):
     model: str
+    # Token usage of the most recent call ({"input_tokens": .., "output_tokens": ..}),
+    # or None. The pipeline turns it into cost in the trace.
+    last_usage: dict[str, int] | None
 
     def generate(self, question: str, chunks: list[ScoredChunk]) -> str: ...
+
+    def generate_stream(self, question: str, chunks: list[ScoredChunk]) -> Iterator[str]:
+        """Yield the answer in text pieces as they're produced."""
+        ...
 
 
 class ExtractiveLLM:
     """No model call: stitches the top passages together with citations."""
 
     model = "extractive"
+    last_usage = None
 
     def generate(self, question: str, chunks: list[ScoredChunk]) -> str:
         if not chunks:
             return "I couldn't find anything about that in your course materials."
         return "\n\n".join(f"{sc.chunk.text.strip()} [{i}]" for i, sc in enumerate(chunks[:2], 1))
+
+    def generate_stream(self, question: str, chunks: list[ScoredChunk]) -> Iterator[str]:
+        for paragraph in self.generate(question, chunks).split("\n\n"):
+            yield paragraph + "\n\n"
 
 
 class RefusalError(RuntimeError):
@@ -69,6 +92,7 @@ class ClaudeLLM:
 
         self.client = anthropic.Anthropic()  # SDK retries 429/5xx twice by default
         self.model, self.effort = model, effort
+        self.last_usage: dict[str, int] | None = None
 
     def generate(self, question: str, chunks: list[ScoredChunk]) -> str:
         """Call client.messages.create and return the answer text.
@@ -79,10 +103,18 @@ class ClaudeLLM:
         - response.content is a list of blocks; keep only type == "text"
         - if response.stop_reason == "refusal", raise RefusalError
         - also check stop_reason == "max_tokens": what does it mean for the answer?
-        - log the exact prompt and the usage (input/output tokens): you'll want them for cost
+        - set self.last_usage = {"input_tokens": .., "output_tokens": ..} from response.usage:
+          the pipeline turns it into cost_usd in the trace and in CloudWatch
         Bonus: set an explicit timeout on the client.
         """
         raise NotImplementedError("exercise 5c")
+
+    def generate_stream(self, question: str, chunks: list[ScoredChunk]) -> Iterator[str]:
+        """EXERCISE 5d. Same request as generate(), but yield text as it arrives.
+
+        See docs/EXERCISES.md §5d. Set self.last_usage when the stream finishes.
+        """
+        raise NotImplementedError("exercise 5d")
 
 
 class BedrockLLM(ClaudeLLM):
@@ -94,6 +126,7 @@ class BedrockLLM(ClaudeLLM):
         self.client = AnthropicBedrockMantle(aws_region=region)
         self.model = model if model.startswith("anthropic.") else f"anthropic.{model}"
         self.effort = effort
+        self.last_usage = None
 
 
 def make_llm(kind: str, *, model: str, effort: str, region: str) -> LLM:

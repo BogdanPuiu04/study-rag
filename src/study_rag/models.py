@@ -37,3 +37,4 @@ class Answer:
     text: str
     sources: list[ScoredChunk]
     model: str
+    trace_id: str = ""

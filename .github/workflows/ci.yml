@@ -12,9 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: uv venv && uv pip install -e ".[dev]"
-      - run: .venv/bin/ruff check .
-      - run: .venv/bin/pytest -q tests/test_plumbing.py
+      - run: uv sync --frozen --extra dev
+      - run: uv run --frozen ruff check .
+      - run: uv run --frozen pytest -q tests/test_plumbing.py tests/test_production.py
 
   core:
     # The hand-written RAG components (see docs/EXERCISES.md).
@@ -22,8 +22,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: uv venv && uv pip install -e ".[dev]"
-      - run: .venv/bin/pytest -q
+      - run: uv sync --frozen --extra dev
+      - run: uv run --frozen pytest -q
 
   retrieval-eval:
     # Quality gate: a change that hurts retrieval fails the PR, like a failing test.
@@ -32,20 +32,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: uv venv && uv pip install -e ".[dev]"
-      - run: .venv/bin/study-rag ingest data/sample
+      - run: uv sync --frozen --extra dev
+      - run: uv run --frozen study-rag ingest data/sample
       - name: Evaluate
         run: |
-          .venv/bin/study-rag eval eval/golden.jsonl --min-recall 0.8 | tee eval.md
+          uv run --frozen study-rag eval eval/golden.jsonl --min-recall 0.8 | tee eval.md
           cat eval.md >> "$GITHUB_STEP_SUMMARY"
+
+  lockfile:
+    # pyproject.toml changed but uv.lock wasn't regenerated -> fail.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv lock --check
 
   terraform:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        stack: [infra/terraform, infra/bootstrap]
     defaults:
       run:
-        working-directory: infra/terraform
+        working-directory: ${{ matrix.stack }}
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
       - run: terraform fmt -check -recursive
       - run: terraform init -backend=false && terraform validate
