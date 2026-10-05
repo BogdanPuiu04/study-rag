@@ -1,0 +1,10 @@
+{"question": "What is the difference between underfitting and overfitting?", "source": "machine-learning/week1_supervised_learning.md", "must_contain": "high bias underfits"}
+{"question": "Which regularisation method can set weights exactly to zero?", "source": "machine-learning/week1_supervised_learning.md", "must_contain": "L1 (lasso)"}
+{"question": "How does k-fold cross-validation work?", "source": "machine-learning/week1_supervised_learning.md", "must_contain": "k folds"}
+{"question": "What happens if the learning rate is too large?", "source": "machine-learning/week2_neural_networks.md", "must_contain": "learning rate"}
+{"question": "How are gradients computed for every weight in a network?", "source": "machine-learning/week2_neural_networks.md", "must_contain": "chain rule"}
+{"question": "Why is ReLU preferred over sigmoid in deep networks?", "source": "machine-learning/week2_neural_networks.md", "must_contain": "vanishing gradient"}
+{"question": "How does dropout prevent overfitting?", "source": "machine-learning/week2_neural_networks.md", "must_contain": "co-adapting"}
+{"question": "What does the CAP theorem say about network partitions?", "source": "cloud-computing/lecture3_distributed_systems.md", "must_contain": "network partition"}
+{"question": "Are DynamoDB reads strongly consistent by default?", "source": "cloud-computing/lecture3_distributed_systems.md", "must_contain": "DynamoDB"}
+{"question": "What is the downside of scaling up a single machine?", "source": "cloud-computing/lecture3_distributed_systems.md", "must_contain": "hardware ceilings"}
