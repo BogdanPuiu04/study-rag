@@ -87,6 +87,12 @@ resource "aws_lambda_function" "app" {
   memory_size   = 2048 # torch + two small models; also buys CPU (Lambda scales CPU with memory)
   timeout       = 300  # reindexing a semester of PDFs on CPU; queries take seconds
 
+  ephemeral_storage {
+    # /tmp holds the downloaded docs, index and embedding cache during reindex.
+    # The 512 MB default fills up with a semester of slide PDFs.
+    size = 2048
+  }
+
   environment {
     variables = {
       STUDY_RAG_INDEX_S3     = "s3://${aws_s3_bucket.data.bucket}/${local.index_key}"
