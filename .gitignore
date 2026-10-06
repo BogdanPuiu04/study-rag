@@ -16,3 +16,4 @@ infra/terraform/.terraform/
 infra/terraform/backend.hcl
 # Personal study notes, never published
 docs/private/
+backup/
