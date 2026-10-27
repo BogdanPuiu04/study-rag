@@ -1,5 +1,5 @@
 """Quiz generation plumbing. Runs with fake models: no download, no API key.
-Exercise 12b (the LLM verifier) is tested in test_quiz_verifier.py."""
+The LLM verifier is tested in test_quiz_verifier.py."""
 
 from types import SimpleNamespace
 
@@ -103,7 +103,7 @@ def fake_client(questions, stop_reason="end_turn"):
 
 @pytest.fixture
 def prompt_written(monkeypatch):
-    # prompts/quiz_system.md is exercise 12a: stand in for it so these tests don't need it.
+    # Stand in for prompts/quiz_system.md so these tests don't depend on its wording.
     monkeypatch.setattr(quiz.generator, "load_prompt", lambda name: "You write quiz questions.")
 
 
@@ -129,7 +129,7 @@ def test_excerpt_text_cannot_close_its_own_block(prompt_written):
 
 def test_generate_refuses_to_run_without_a_prompt(monkeypatch):
     monkeypatch.setattr(quiz.generator, "load_prompt", lambda name: "")
-    with pytest.raises(QuizUnavailableError, match="12a"):
+    with pytest.raises(QuizUnavailableError, match="quiz_system.md"):
         generate_quiz(fake_client([]), "m", [chunk("a")])
 
 

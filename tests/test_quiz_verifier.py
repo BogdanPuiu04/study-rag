@@ -1,4 +1,4 @@
-"""Exercise 12b: verify_question, with a fake client (no API key needed)."""
+"""Quiz verifier, with a fake client (no API key needed)."""
 
 from types import SimpleNamespace
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from study_rag.llm import RefusalError, load_prompt
+from study_rag.llm import RefusalError, escape_tags, load_prompt
 from study_rag.models import Chunk
 from study_rag.pricing import cost_usd
 from study_rag.quiz.models import Quiz, QuizQuestion
@@ -41,8 +41,9 @@ def build_quiz_message(chunks: list[Chunk]) -> str:
     document must not be able to end the block early (same rule as the answer prompt)."""
     parts = []
     for i, c in enumerate(chunks, start=1):
-        text = c.text.replace("</excerpt>", "")
+        text = escape_tags(c.text)
         where = f"{c.source} - {c.section}" if c.section else c.source
+        where = escape_tags(where).replace('"', "&quot;")
         parts.append(f'<excerpt n="{i}" source="{where}">\n{text}\n</excerpt>')
     return (
         "\n\n".join(parts)
@@ -56,7 +57,7 @@ def generate_quiz(client, model: str, chunks: list[Chunk]) -> tuple[Quiz, dict[s
     system = load_prompt("quiz_system")
     if not system:
         raise QuizUnavailableError(
-            "prompts/quiz_system.md is empty: write it (docs/EXERCISES.md §12a)"
+            "prompts/quiz_system.md is empty"
         )
     response = client.messages.parse(
         model=model,
@@ -86,7 +87,7 @@ def make_quiz(
     course: str | None = None,
     verify: Callable[[QuizQuestion, str], Review] | None = None,
 ) -> QuizResult:
-    """Select chunks, generate, filter. `verify` is the optional LLM gate (exercise 12b)."""
+    """Select chunks, generate, filter. `verify` is the optional LLM gate."""
     chunks = select_chunks(all_chunks, n, course)
     if not chunks:
         where = f" in course {course!r}" if course else ""

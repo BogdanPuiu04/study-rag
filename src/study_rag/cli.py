@@ -48,7 +48,7 @@ def ask(
 def quiz(
     n: Annotated[int, typer.Option(help="Number of questions.")] = 5,
     course: Annotated[str | None, typer.Option(help="Restrict to one course folder.")] = None,
-    verify: Annotated[bool, typer.Option(help="Also run the LLM verifier (exercise 12b).")] = False,
+    verify: Annotated[bool, typer.Option(help="Also run the LLM verifier.")] = False,
 ) -> None:
     """Multiple-choice quiz from your course materials, with citations (costs tokens)."""
     from study_rag.quiz import QuizError
