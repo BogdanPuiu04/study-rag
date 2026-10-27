@@ -1,6 +1,6 @@
 # Spec 003 — Retrieval regression gate
 
-**Status:** implemented; baseline file pending (needs exercises 1–4 first).
+**Status:** implemented; baseline file pending (needs a real golden set).
 
 ## Problem
 CI fails only when hybrid recall@5 is under 0.8. A change that drops it from 0.95 to 0.82
@@ -12,8 +12,8 @@ passes. Quality should be gated relative to the last accepted result.
       that fell by more than the tolerance.
 - [x] A metric missing from the run (different `-k`) is a regression, not a silent pass.
 - [x] CI uses the baseline only when `eval/baseline.json` exists; `make baseline` refreshes it.
-- [ ] `eval/baseline.json` committed (after exercises 1–4 and a real golden set).
-- [ ] Tolerance justified by measured run-to-run noise (exercise 9).
+- [ ] `eval/baseline.json` committed (after a real golden set).
+- [ ] Tolerance justified by measured run-to-run noise (run the same eval twice).
 
 ## Notes
 The fixed `--min-recall` floor stays as a second, absolute guard. See ADR 0010: with 30

@@ -1,6 +1,6 @@
 # Spec 002 — Quiz from course materials
 
-**Status:** implemented (plumbing); exercises 12a/12b open. **Milestone:** 3, optional extension.
+**Status:** implemented; not yet judged on real course material. **Milestone:** 3, optional extension.
 
 ## Problem
 Asking questions only helps once you know what to ask. Before an exam I want the material to
@@ -23,8 +23,10 @@ tells me what to re-read.
       HTTP 501), and so does an empty writer prompt.
 - [x] Refusal and truncated output surface as errors (422, 502), not as an empty quiz.
 - [x] Cost per quiz is reported when the model's price is known.
-- [ ] Writer prompt written (exercise 12a) and judged on 5+ quizzes.
-- [ ] LLM verifier written (exercise 12b) and checked against hand labels.
+- [x] Writer prompt written.
+- [ ] Writer prompt judged on 5+ quizzes.
+- [x] LLM verifier written.
+- [ ] LLM verifier checked against hand labels.
 
 ## Non-goals
 Per-user history, scoring, spaced repetition, free-text answers, a UI.

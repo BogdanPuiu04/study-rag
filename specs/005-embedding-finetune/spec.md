@@ -14,7 +14,7 @@ recall@5 / MRR on the golden set versus the base model. It may not: say so if it
 
 ## Sketch (to be specified properly when started)
 1. Generate questions per chunk with Claude; keep a pair only if the base model finds the
-   chunk but not at rank 1 (hard but valid). The prompt and the filter are the owner's work.
+   chunk but not at rank 1 (hard but valid).
 2. Split **by document**, never by pair; the golden set is never training data.
 3. `sentence-transformers` v3 trainer with `MultipleNegativesRankingLoss`; Colab/Kaggle GPU
    is enough for a small model.

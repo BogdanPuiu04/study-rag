@@ -14,12 +14,11 @@ risk is low-quality questions: unsupported answers, absurd distractors, trivia.
   checked data, not prose.
 - **Two gates:** a free structural check (four distinct options, valid index, real excerpt
   number) always runs; an LLM verifier that sees one excerpt and one question runs behind
-  `--verify` (an exercise, see `docs/EXERCISES.md` §12).
-- Excerpt text is data: a closing `</excerpt>` inside a document is stripped so it cannot end
-  the block and inject instructions.
+  `--verify`.
+- Excerpt text is data: tag-like sequences (`<excerpt`, `</excerpt`) inside a document are
+  escaped so they cannot end the block and inject instructions.
 - Needs a real model; the extractive offline backend answers with a clear error (HTTP 501).
 
 ## Consequences
 - Rejected questions are reported, not hidden; the rejection rate is a quality signal.
 - No persistence or per-user history: a quiz is generated on request.
-- The writer prompt is empty until exercise 12a is done; `quiz` fails with a message saying so.

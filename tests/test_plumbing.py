@@ -1,4 +1,4 @@
-"""Infrastructure code — independent of the exercises, should always pass."""
+"""Infrastructure code: should always pass."""
 
 import json
 

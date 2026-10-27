@@ -19,7 +19,7 @@ Reading it end to end found two defects that would have failed the first deploy.
 - [ ] Deploy workflow assumes the role and rolls the Lambda.
 - [ ] `/health` through the Function URL returns the index metadata.
 - [ ] `/ask` returns a cited answer: confirms (or corrects) the Bedrock IAM statement.
-- [ ] Cold start measured (exercise 10); Docker image built once (`docker.yml` has never run).
+- [ ] Cold start measured; Docker image built once (`docker.yml` has never run).
 
 ## Out of scope
 Multi-user auth, a database, a UI.

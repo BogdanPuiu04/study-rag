@@ -15,5 +15,5 @@ missing from the run (e.g. a different `-k`) counts as a regression rather than 
 
 ## Consequences
 - The golden set must be big enough that 0.03 is above noise: with 30 questions, one
-  question is 0.033. Measure run-to-run variation before trusting a threshold (exercise 9).
+  question is 0.033. Measure run-to-run variation before trusting a threshold (run the same eval twice).
 - Improvements don't fail; they only matter once someone refreshes the baseline.

@@ -29,8 +29,9 @@ can't point me to the lecture to re-read.
 - [x] Feedback endpoint; negative feedback exported as golden-set candidates.
 - [x] Streaming endpoint (SSE).
 - [x] Upload to S3 triggers reindex; warm instances reload the new index.
-- [ ] Streaming generation with Claude (exercise 5d).
-- [ ] Prompt-injection test + hardened prompt (exercise 8).
+- [x] Streaming generation with Claude.
+- [x] Prompt-injection test (poisoned fixture) + hardened prompt and escaped delimiters;
+      the live test needs an API key and has not been run yet.
 
 ## Non-goals (for now)
 - Multi-user auth, web UI, chat history.

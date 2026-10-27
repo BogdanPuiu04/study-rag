@@ -16,4 +16,4 @@ embedder, model or dimension differ from the config. Writes are atomic (temp fil
 - A tampered index can at worst be wrong, not executable.
 - Changing the embedding model requires a reindex, and says so loudly.
 - BM25 structures aren't stored; they're rebuilt on load by replaying `add()`, which keeps the
-  file format independent of the BM25 implementation (an exercise).
+  file format independent of the BM25 implementation.

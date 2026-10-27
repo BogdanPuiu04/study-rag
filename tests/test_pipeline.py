@@ -1,4 +1,4 @@
-"""End-to-end: passes once exercises 1-4 and 5b are done (no API calls)."""
+"""End-to-end over data/sample: ingest, cited answer, retrieval quality bar (no API calls)."""
 
 from pathlib import Path
 

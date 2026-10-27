@@ -1,5 +1,5 @@
 """Production plumbing: index format, compatibility checks, cost, metrics, feedback,
-streaming API, S3 reindexing. Independent of the exercises — must always pass."""
+streaming API, S3 reindexing. Must always pass."""
 
 import json
 
@@ -22,7 +22,7 @@ from study_rag.tracing import Trace, write_trace
 
 
 def one_chunk_per_doc(doc: Document, size: int, overlap: int) -> list[Chunk]:
-    """Stand-in for exercise 2 so plumbing tests don't depend on it."""
+    """Stand-in for the chunker so plumbing tests don't depend on it."""
     return [Chunk(f"{doc.doc_id}:0", doc.doc_id, doc.text, doc.source)]
 
 
