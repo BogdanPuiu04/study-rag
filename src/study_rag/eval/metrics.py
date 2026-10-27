@@ -21,12 +21,12 @@ def is_relevant(sc: ScoredChunk, item: GoldenItem) -> bool:
     return c.source == item.source and item.must_contain.lower() in c.text.lower()
 
 
-# --- EXERCISE 1 ---------------------------------------------------------------
-
-
 def first_relevant_rank(results: list[ScoredChunk], item: GoldenItem) -> int | None:
     """1-based position of the first relevant chunk in `results`, or None if absent."""
-    raise NotImplementedError("exercise 1")
+    for rank, sc in enumerate(results, start=1):
+        if is_relevant(sc, item):
+            return rank
+    return None
 
 
 def recall_at_k(ranks: list[int | None], k: int) -> float:
@@ -35,12 +35,18 @@ def recall_at_k(ranks: list[int | None], k: int) -> float:
     `ranks` holds one entry per question (output of first_relevant_rank).
     Empty input -> 0.0.
     """
-    raise NotImplementedError("exercise 1")
+    if not ranks:
+        return 0.0
+    return sum(1 for r in ranks if r is not None and r <= k) / len(ranks)
 
 
 def mrr(ranks: list[int | None]) -> float:
     """Mean Reciprocal Rank: average of 1/rank, counting a miss (None) as 0.
 
-    Think about it: why does MRR tell you something recall@5 doesn't?
+    Recall@k only asks "was it in the top k?"; MRR also rewards putting it first. Two systems
+    with the same recall@5 can differ a lot here, and the top position matters: the model
+    weighs early excerpts more, and a good rank 1 lets `top_k` (and the token bill) shrink.
     """
-    raise NotImplementedError("exercise 1")
+    if not ranks:
+        return 0.0
+    return sum(1 / r for r in ranks if r is not None) / len(ranks)

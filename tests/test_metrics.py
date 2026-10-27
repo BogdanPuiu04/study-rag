@@ -1,4 +1,4 @@
-"""Exercise 1."""
+"""Retrieval metrics: rank of the first relevant chunk, recall@k, MRR."""
 
 import pytest
 
