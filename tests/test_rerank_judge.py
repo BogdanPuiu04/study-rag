@@ -1,4 +1,4 @@
-"""Exercises 6 and 7 — with fake models, so no download and no API key needed."""
+"""Cross-encoder reranking and the LLM judge, with fake models (no download, no API key)."""
 
 from types import SimpleNamespace
 
