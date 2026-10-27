@@ -1,4 +1,4 @@
-"""Exercises 3a, 3b, 4."""
+"""Vector search, BM25 and Reciprocal Rank Fusion."""
 
 import numpy as np
 
@@ -22,7 +22,7 @@ def make_store() -> MemoryStore:
     return store
 
 
-# 3a
+# vector search
 def test_vector_search_exact_match_ranks_first_and_sorted():
     store = make_store()
     q = HashEmbedder().embed([TEXTS[2]])[0]
@@ -33,7 +33,7 @@ def test_vector_search_exact_match_ranks_first_and_sorted():
     assert [r.score for r in res] == sorted((r.score for r in res), reverse=True)
 
 
-# 3b
+# BM25
 def test_keyword_search_finds_term_and_excludes_zero_scores():
     res = make_store().keyword_search("chain rule", k=10)
     assert [r.chunk.chunk_id for r in res] == ["c0"]
@@ -51,7 +51,7 @@ def test_keyword_search_unknown_term_returns_empty():
     assert make_store().keyword_search("kubernetes", k=5) == []
 
 
-# 4
+# RRF
 def s(cid: str) -> ScoredChunk:
     return ScoredChunk(Chunk(cid, "d", cid, "s"), 0.0)
 
