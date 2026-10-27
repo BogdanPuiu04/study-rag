@@ -73,7 +73,7 @@ def reindex(settings: Settings) -> dict[str, int]:
         if settings.cache_s3_uri:
             _try_download(settings.cache_s3_uri, settings.embed_cache_path)
         # Don't download/check the old index: we're replacing it.
-        build = Settings(**{**settings.__dict__, "index_s3_uri": ""})
+        build = settings.model_copy(update={"index_s3_uri": ""})
         rag = StudyRAG.from_settings(build, check_index=False)
         n_chunks = rag.ingest(docs)
 

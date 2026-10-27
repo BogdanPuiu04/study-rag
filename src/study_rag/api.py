@@ -18,6 +18,7 @@ from study_rag.config import Settings
 from study_rag.llm import RefusalError
 from study_rag.models import ScoredChunk
 from study_rag.pipeline import StudyRAG
+from study_rag.quiz import NoMaterialError, QuizError, QuizUnavailableError
 from study_rag.s3sync import IndexWatcher, reindex
 from study_rag.store.base import IndexMismatchError
 
@@ -65,6 +66,27 @@ class FeedbackRequest(BaseModel):
     trace_id: str = Field(min_length=8, max_length=64)
     rating: Literal[1, -1]
     comment: str | None = Field(default=None, max_length=2000)
+
+
+class QuizRequest(BaseModel):
+    n: int = Field(default=5, ge=1, le=10)
+    course: str | None = None
+
+
+class QuizItem(BaseModel):
+    question: str
+    options: list[str]
+    correct_index: int
+    explanation: str
+    source: str
+    section: str
+
+
+class QuizResponse(BaseModel):
+    questions: list[QuizItem]
+    rejected: int
+    model: str
+    cost_usd: float | None
 
 
 def _sources(chunks: list[ScoredChunk]) -> list[Source]:
@@ -120,6 +142,36 @@ def ask_stream(req: AskRequest) -> StreamingResponse:
         yield sse("done", {"trace_id": trace_id})
 
     return StreamingResponse(events(), media_type="text/event-stream")
+
+
+@app.post("/quiz", response_model=QuizResponse)
+def quiz(req: QuizRequest) -> QuizResponse:
+    try:
+        result = get_rag().quiz(req.n, course=req.course)
+    except QuizUnavailableError as e:
+        raise HTTPException(status_code=501, detail=str(e)) from e
+    except NoMaterialError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except RefusalError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except QuizError as e:  # truncated output etc.: the upstream model misbehaved
+        raise HTTPException(status_code=502, detail=str(e)) from e
+    items = []
+    for q in result.questions:
+        chunk = result.chunks[q.excerpt - 1]
+        items.append(
+            QuizItem(
+                **q.model_dump(include={"question", "options", "correct_index", "explanation"}),
+                source=chunk.source,
+                section=chunk.section,
+            )
+        )
+    return QuizResponse(
+        questions=items,
+        rejected=len(result.rejected),
+        model=result.model,
+        cost_usd=result.cost_usd,
+    )
 
 
 @app.post("/feedback", status_code=204)

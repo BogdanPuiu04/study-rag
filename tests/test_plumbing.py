@@ -93,3 +93,64 @@ def test_api_ask_and_health(monkeypatch):
 def test_api_validates_input(monkeypatch):
     monkeypatch.setattr(api, "get_rag", lambda: FakeRAG())
     assert TestClient(api.app).post("/ask", json={"question": ""}).status_code == 422
+
+
+def test_cli_ask_prints_answer_and_sources(monkeypatch):
+    from typer.testing import CliRunner
+
+    from study_rag import cli
+
+    src = ScoredChunk(Chunk("c1", "d", "t", "ml/week1.md", "Dropout"), 0.42)
+
+    class FakeRAG:
+        def ask(self, question, course=None):
+            return Answer(f"{question}|{course}", [src], "fake", trace_id="t1")
+
+    monkeypatch.setattr(cli, "_rag", FakeRAG)
+    result = CliRunner().invoke(cli.app, ["ask", "what?", "--course", "ml"])
+    assert result.exit_code == 0
+    assert "what?|ml" in result.output
+    assert "[1] ml/week1.md - Dropout  (score 0.420)" in result.output
+
+
+def test_cli_eval_gate_fails_below_min_recall(monkeypatch):
+    from typer.testing import CliRunner
+
+    from study_rag import cli
+
+    monkeypatch.setattr(cli, "_rag", lambda: None)
+    monkeypatch.setattr(cli, "load_golden", lambda path: [])
+    monkeypatch.setattr(cli, "evaluate", lambda rag, golden, k: {"hybrid": {f"recall@{k}": 0.5}})
+    monkeypatch.setattr(cli, "format_report", lambda report: "report")
+    args = ["eval", "g.jsonl", "-k", "3", "--min-recall"]
+    runner = CliRunner()
+    assert runner.invoke(cli.app, [*args, "0.4"]).exit_code == 0
+    failed = runner.invoke(cli.app, [*args, "0.8"])
+    assert failed.exit_code == 1
+    assert "FAIL: hybrid recall@3=0.500 < 0.8" in failed.output
+
+
+def test_settings_read_env_by_prefix_and_alias(monkeypatch):
+    from study_rag.config import Settings
+
+    monkeypatch.setenv("STUDY_RAG_TOP_K", "9")  # prefix + field name
+    monkeypatch.setenv("STUDY_RAG_INDEX", "/tmp/x.npz")  # explicit alias
+    monkeypatch.setenv("AWS_REGION", "eu-west-1")  # alias outside the prefix
+    s = Settings()
+    assert (s.top_k, s.index_path, s.aws_region) == (9, "/tmp/x.npz", "eu-west-1")
+    assert Settings(index_path="/tmp/y.npz").index_path == "/tmp/y.npz"  # kwargs beat env
+
+
+def test_settings_reject_bad_values_at_startup(monkeypatch):
+    import pytest
+    from pydantic import ValidationError
+
+    from study_rag.config import Settings
+
+    monkeypatch.setenv("STUDY_RAG_LLM", "claud")  # typo
+    with pytest.raises(ValidationError):
+        Settings()
+    monkeypatch.delenv("STUDY_RAG_LLM")
+    monkeypatch.setenv("STUDY_RAG_TOP_K", "0")
+    with pytest.raises(ValidationError):
+        Settings()

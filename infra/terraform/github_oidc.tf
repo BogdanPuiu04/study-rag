@@ -22,11 +22,15 @@ data "aws_iam_policy_document" "github_trust" {
       variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
     }
-    # Only workflows on main of this repo — not forks, not PR branches.
+    # Only jobs of this repo that run in the `production` environment. When a job names an
+    # environment, GitHub puts `environment:<name>` in the token's `sub` *instead of* the
+    # branch (docs: "OpenID Connect reference"), so a `ref:refs/heads/main` condition would
+    # never match deploy.yml. To keep it main-only, set the environment's "Deployment
+    # branches" to `main` in GitHub (Settings > Environments > production).
     condition {
-      test     = "StringLike"
+      test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:ref:refs/heads/main"]
+      values   = ["repo:${var.github_repo}:environment:production"]
     }
   }
 }

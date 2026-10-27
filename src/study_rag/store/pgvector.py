@@ -78,6 +78,12 @@ class PgVectorStore:
         ).fetchall()
         return [_row_to_scored(r) for r in rows]
 
+    def all_chunks(self) -> list[Chunk]:
+        rows = self.conn.execute(
+            f"SELECT {_COLS} FROM chunks ORDER BY source, position"
+        ).fetchall()
+        return [Chunk(cid, did, text, src, sec, pos) for cid, did, src, sec, pos, text in rows]
+
     @property
     def meta(self) -> dict:
         row = self.conn.execute("SELECT meta FROM index_meta WHERE id = 1").fetchone()

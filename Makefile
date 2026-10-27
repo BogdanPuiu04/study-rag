@@ -3,7 +3,7 @@ DATA ?= data/sample
 Q ?= What is dropout?
 BUCKET ?= $(shell cd infra/terraform 2>/dev/null && terraform output -raw data_bucket 2>/dev/null)
 
-.PHONY: install test test-plumbing lint ingest ask eval eval-answers candidates serve docker upload-docs
+.PHONY: install test test-plumbing lint typecheck check ingest ask quiz eval baseline eval-answers candidates serve docker upload-docs
 
 install:
 	uv sync --frozen --extra dev
@@ -12,10 +12,16 @@ test:
 	$(RUN) pytest -q
 
 test-plumbing:
-	$(RUN) pytest -q tests/test_plumbing.py tests/test_production.py
+	$(RUN) pytest -q tests/test_plumbing.py tests/test_production.py tests/test_quiz.py tests/test_baseline.py
 
 lint:
 	$(RUN) ruff check .
+
+typecheck:
+	$(RUN) mypy
+
+# Everything CI runs on every PR, minus the Terraform jobs.
+check: lint typecheck test
 
 ingest:
 	$(RUN) study-rag ingest $(DATA)
@@ -23,8 +29,16 @@ ingest:
 ask:
 	$(RUN) study-rag ask "$(Q)"
 
+quiz:
+	$(RUN) study-rag quiz --n 5
+
 eval:
-	$(RUN) study-rag eval eval/golden.jsonl
+	$(RUN) study-rag eval eval/golden.jsonl $(if $(wildcard eval/baseline.json),--baseline eval/baseline.json)
+
+# Accept the current retrieval quality as the new reference (commit eval/baseline.json
+# in the same PR as the change that moved the numbers, and say why in the description).
+baseline:
+	$(RUN) study-rag eval eval/golden.jsonl --save-baseline eval/baseline.json
 
 eval-answers:
 	$(RUN) study-rag eval-answers eval/golden.jsonl --limit 5

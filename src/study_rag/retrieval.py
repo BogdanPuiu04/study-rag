@@ -19,7 +19,6 @@ def reciprocal_rank_fusion(
     rankings: list[list[ScoredChunk]], k: int = 60
 ) -> list[ScoredChunk]:
     """EXERCISE 4. Merge several rankings into one.
-
     Each chunk scores sum(1 / (k + rank)) over the rankings it appears in
     (rank is 1-based). Return the unique chunks sorted by that score, highest
     first, with the fused score in ScoredChunk.score. Identify chunks by chunk_id.
@@ -27,6 +26,7 @@ def reciprocal_rank_fusion(
     Why ranks and not the raw scores? Compare the range of a cosine score
     with the range of a BM25 score.
     """
+
     raise NotImplementedError("exercise 4")
 
 

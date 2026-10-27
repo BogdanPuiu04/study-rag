@@ -14,10 +14,18 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --frozen --extra dev
       - run: uv run --frozen ruff check .
-      - run: uv run --frozen pytest -q tests/test_plumbing.py tests/test_production.py
+      - run: uv run --frozen pytest -q tests/test_plumbing.py tests/test_production.py tests/test_quiz.py tests/test_baseline.py
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen --extra dev --extra aws
+      - run: uv run --frozen mypy
 
   core:
-    # The hand-written RAG components (see docs/EXERCISES.md).
+    # The core RAG components.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,8 +43,12 @@ jobs:
       - run: uv sync --frozen --extra dev
       - run: uv run --frozen study-rag ingest data/sample
       - name: Evaluate
+        # eval/baseline.json is the last accepted report (make baseline). Once it exists,
+        # a PR that makes hybrid retrieval worse fails even while above the 0.8 floor.
         run: |
-          uv run --frozen study-rag eval eval/golden.jsonl --min-recall 0.8 | tee eval.md
+          ARGS="--min-recall 0.8"
+          if [ -f eval/baseline.json ]; then ARGS="$ARGS --baseline eval/baseline.json"; fi
+          uv run --frozen study-rag eval eval/golden.jsonl $ARGS | tee eval.md
           cat eval.md >> "$GITHUB_STEP_SUMMARY"
 
   lockfile:
@@ -62,3 +74,22 @@ jobs:
           terraform_version: "1.10.5"
       - run: terraform fmt -check -recursive
       - run: terraform init -backend=false && terraform validate
+      - uses: terraform-linters/setup-tflint@v4
+      - run: tflint --init --config "$GITHUB_WORKSPACE/.tflint.hcl"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - run: tflint --config "$GITHUB_WORKSPACE/.tflint.hcl"
+
+  terraform-scan:
+    # Informational for now: triage the first findings (some are deliberate, e.g. SSE-S3
+    # instead of a KMS key to keep the idle cost at zero), record each exception in
+    # .trivyignore with a reason, then drop `exit-code: "0"` to make it blocking.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: infra
+          severity: HIGH,CRITICAL
+          exit-code: "0"

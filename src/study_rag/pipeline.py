@@ -12,6 +12,7 @@ from study_rag.ingest import chunk_document, load_directory
 from study_rag.llm import LLM, make_llm, prompt_version
 from study_rag.models import Answer, ScoredChunk
 from study_rag.pricing import cost_usd
+from study_rag.quiz import QuizResult, QuizUnavailableError, make_quiz
 from study_rag.retrieval import CrossEncoderReranker, HybridRetriever
 from study_rag.store import VectorStore, make_store
 from study_rag.store.base import INDEX_FORMAT_VERSION, check_compatible
@@ -182,6 +183,22 @@ class StudyRAG:
                 write_trace(trace, self.settings.trace_path)
 
         return trace.trace_id, sources, pieces()
+
+    def quiz(self, n: int, course: str | None = None, verify: bool = False) -> QuizResult:
+        """Multiple-choice questions with citations. Needs a real model (claude / bedrock)."""
+        client = getattr(self.llm, "client", None)
+        if client is None:
+            raise QuizUnavailableError(
+                "quiz needs STUDY_RAG_LLM=claude or bedrock: extractive mode can't write questions"
+            )
+        verifier = None
+        if verify:
+            from study_rag.quiz.verifier import verify_question
+
+            def verifier(q, text):
+                return verify_question(client, self.llm.model, q, text)
+
+        return make_quiz(self.store.all_chunks(), client, self.llm.model, n, course, verifier)
 
     def record_feedback(self, trace_id: str, rating: int, comment: str | None = None) -> None:
         write_feedback(trace_id, rating, comment, self.settings.trace_path)

@@ -60,8 +60,11 @@ class MemoryStore:
     # load() rebuilds them by replaying add(), which keeps the format independent
     # of how BM25 is implemented.
 
+    def all_chunks(self) -> list[Chunk]:
+        return sorted(self.chunks, key=lambda c: (c.source, c.position))
+
     def clear(self) -> None:
-        self.__init__(self.path)
+        self.__init__(self.path)  # type: ignore[misc]  # deliberate: resets every field
 
     def save(self) -> None:
         if not self.path:

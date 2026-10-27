@@ -40,13 +40,15 @@ data "aws_iam_policy_document" "lambda" {
   }
   statement {
     sid = "InvokeClaude"
-    # TODO: confirm the exact IAM actions for the Bedrock Messages-API (Mantle)
-    # endpoint in the Bedrock docs before first apply.
-    actions = [
-      "bedrock:InvokeModel",
-      "bedrock:InvokeModelWithResponseStream",
-    ]
-    resources = ["*"]
+
+    # BedrockLLM uses AnthropicBedrockMantle (bedrock-mantle endpoint). Its IAM action is
+    # bedrock-mantle:CreateInference, on a *project* resource: not bedrock:InvokeModel,
+    # which belongs to the bedrock-runtime endpoint. Source: "Inference endpoints supported
+    # by Amazon Bedrock" and the bedrock-mantle service authorization reference.
+    # Not exercised against a real account yet: if the first call is AccessDenied, the
+    # error names the missing action; add it here (see docs/adr/0008-bedrock-mantle-iam.md).
+    actions   = ["bedrock-mantle:CreateInference"]
+    resources = ["arn:aws:bedrock-mantle:${var.region}:${data.aws_caller_identity.current.account_id}:project/*"]
   }
   statement {
     sid       = "Logs"

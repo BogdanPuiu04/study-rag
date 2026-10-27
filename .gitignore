@@ -3,8 +3,10 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
 .index/
 .env
+.idea
 # Your real course materials may be copyrighted — keep them out of the public repo.
 data/*
 !data/sample/
@@ -17,3 +19,7 @@ infra/terraform/backend.hcl
 # Personal study notes, never published
 docs/private/
 backup/
+
+# Local assistant configuration
+CLAUDE.md
+.claude/

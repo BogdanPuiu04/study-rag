@@ -1,4 +1,4 @@
-"""Turn 👎 feedback into golden-set candidates.
+"""Turn thumbs-down feedback into golden-set candidates.
 
 The loop: users rate answers -> negative ratings are joined with their traces ->
 you label each candidate (which source + phrase *should* have been retrieved) ->

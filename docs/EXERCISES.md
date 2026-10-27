@@ -4,7 +4,8 @@ Everything else in the repo is plumbing. These pieces are the AI/ML core: the
 parts an interviewer will ask you to explain, whiteboard, or extend.
 
 Exercises 1–7 build the system. Exercises 8–11 make it production-grade: they're
-the questions that separate "built a RAG demo" from "ran a RAG system".
+the questions that separate "built a RAG demo" from "ran a RAG system". Exercise 12 is an
+optional extension (quiz generation): do it after the milestone work, not instead of it.
 
 **Rules of the game**
 - No LangChain / LlamaIndex. numpy and the Anthropic SDK only.
@@ -29,6 +30,8 @@ the questions that separate "built a RAG demo" from "ran a RAG system".
 | 9 | Quality regressions over time | `scripts/` | — | ~60 lines + a write-up |
 | 10 | Cold start: measure, then decide | `docs/` | — | measurements + a write-up |
 | 11 | Hard PDFs: slides, formulas, scans | `src/study_rag/ingest/` | you write them | open-ended |
+| 12a | Quiz-writer prompt *(optional extension)* | `prompts/quiz_system.md` | read 5 questions, count the bad ones | a prompt |
+| 12b | Quiz verifier *(optional extension)* | `prompts/quiz_verifier_system.md`, `src/study_rag/quiz/verifier.py` | `test_quiz_verifier.py` | ~20 lines |
 
 Once 1–4 and 5b are done, `test_pipeline.py` turns green and the CLI works end to end.
 
@@ -338,7 +341,7 @@ specific change.
 
 **Interview questions**
 - How many questions do you need before a 5% drop is meaningful? (Think binomial.)
-- Online vs offline evaluation: what does the 👎 feedback loop add that the golden set can't?
+- Online vs offline evaluation: what does the thumbs-down feedback loop add that the golden set can't?
 
 ## 10. Cold start: measure, then decide
 
@@ -390,6 +393,52 @@ retrieved.
 - When is a vision model worth its per-page cost versus OCR?
 
 ---
+
+## 12. Quiz generation *(optional extension, after Milestone 1)*
+
+The plumbing is written: `study-rag quiz` and `POST /quiz` pick diverse chunks
+(`quiz/select.py`), call Claude once with structured output, and drop malformed questions
+(`structural_issues`). Two pieces decide whether the quiz is *good*, and they're yours.
+
+### 12a. The quiz-writer prompt (`prompts/quiz_system.md`)
+
+**Concept.** Structured output guarantees the *shape* (four options, an index, an excerpt
+number). It says nothing about whether the question is any good. That's the prompt's job,
+and it's the same skill as exercise 5a with a different failure mode: instead of
+hallucinated answers, you get *cheap questions*.
+
+**Write down first** what a bad question looks like, then forbid each one with its reason:
+- answerable from general knowledge, without reading the excerpt
+- distractors that are absurd, or that are also correct
+- the keyed answer always the longest, or always in the same position
+- "which is NOT..." trick phrasing
+
+**Run it.** `STUDY_RAG_LLM=claude study-rag quiz --n 5`. Read all five questions and mark
+each good / bad / wrong. Edit the prompt, re-run, count again. Write the before/after in
+your notes: that is the eval for this feature.
+
+### 12b. The verifier (`quiz/verifier.py`, `prompts/quiz_verifier_system.md`)
+
+**Concept.** Asking the model that wrote a question whether it's good is weak. A second
+call that sees only *one excerpt and one question* and is told to attack it catches what
+the generator misses. It costs one extra call per question, so it sits behind `--verify`.
+
+**Hint ladder**
+1. Same shape as `judge_answer` (exercise 7): `client.messages.parse(..., output_format=Review)`.
+2. The user message needs the excerpt, the question, *all four options* and which one is keyed.
+   Without the options the verifier can't tell whether a distractor is also correct.
+3. Check `stop_reason` before trusting `parsed_output` (refusal -> `RefusalError`).
+4. Run it: `study-rag quiz --verify`. The summary line shows how many questions it rejected.
+
+**Pitfall.** A verifier that rejects nothing is as useless as one that rejects everything.
+Hand-label 10 generated questions good / bad first, then check the verifier agrees with you
+on most of them (same calibration idea as the judge in exercise 7).
+
+**Interview questions**
+- Why not let the generator mark its own questions?
+- Structural checks run before the LLM check. Why that order?
+- The verifier rejects 40% of questions. Is that a bug? How do you find out?
+- Why one question per excerpt instead of "write 5 questions about this text"?
 
 ## When all exercises are done
 

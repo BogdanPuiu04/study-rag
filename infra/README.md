@@ -70,7 +70,8 @@ cd ../.. && make upload-docs
 Then in GitHub → Settings → Secrets and variables → Actions:
 - **Variables**: `AWS_DEPLOY_ROLE_ARN` (output `deploy_role_arn`), `AWS_REGION`
 - **Secrets** (optional): `ANTHROPIC_API_KEY` for the weekly answer-eval workflow
-- **Environments**: create `production` (add yourself as required reviewer if you like)
+- **Environments**: create `production`, set *Deployment branches* to `main` only (the AWS trust
+  policy matches the environment, not the branch), and optionally add yourself as required reviewer
 
 From then on: code → **deploy** workflow; data → `make upload-docs`.
 
@@ -94,7 +95,7 @@ awscurl --service lambda -X POST "${URL}feedback" \
 CloudWatch → Dashboards → **study-rag**: latency per stage, cost per hour, tokens,
 Lambda errors, latest queries.
 
-Export 👎 feedback + traces for `study-rag feedback-candidates` (Logs Insights on
+Export thumbs-down feedback + traces for `study-rag feedback-candidates` (Logs Insights on
 `/aws/lambda/study-rag`, then download results as JSON lines):
 
 ```text

@@ -67,7 +67,7 @@ class ExtractiveLLM:
     """No model call: stitches the top passages together with citations."""
 
     model = "extractive"
-    last_usage = None
+    last_usage: dict[str, int] | None = None
 
     def generate(self, question: str, chunks: list[ScoredChunk]) -> str:
         if not chunks:
@@ -123,7 +123,8 @@ class BedrockLLM(ClaudeLLM):
     def __init__(self, model: str, region: str, effort: str = "medium") -> None:
         from anthropic import AnthropicBedrockMantle
 
-        self.client = AnthropicBedrockMantle(aws_region=region)
+        # Same Messages API as anthropic.Anthropic, different class: duck-typed on purpose.
+        self.client = AnthropicBedrockMantle(aws_region=region)  # type: ignore[assignment]
         self.model = model if model.startswith("anthropic.") else f"anthropic.{model}"
         self.effort = effort
         self.last_usage = None
