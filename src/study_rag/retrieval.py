@@ -18,16 +18,25 @@ from study_rag.store.base import VectorStore
 def reciprocal_rank_fusion(
     rankings: list[list[ScoredChunk]], k: int = 60
 ) -> list[ScoredChunk]:
-    """EXERCISE 4. Merge several rankings into one.
-    Each chunk scores sum(1 / (k + rank)) over the rankings it appears in
-    (rank is 1-based). Return the unique chunks sorted by that score, highest
-    first, with the fused score in ScoredChunk.score. Identify chunks by chunk_id.
+    """Merge several rankings into one with Reciprocal Rank Fusion.
 
-    Why ranks and not the raw scores? Compare the range of a cosine score
-    with the range of a BM25 score.
+    Each chunk scores sum(1 / (k + rank)) over the rankings it appears in (rank is 1-based),
+    so only positions matter: a cosine score in [-1, 1] and an unbounded BM25 score never
+    have to be put on the same scale. k = 60 (the value from the original RRF paper)
+    flattens the curve, so agreement between rankings outweighs a single first place:
+    rank 3 in both lists (2/63) beats rank 1 in one (1/61).
+    Returns unique chunks (by chunk_id), highest fused score first.
     """
-
-    raise NotImplementedError("exercise 4")
+    fused: dict[str, float] = {}
+    chunks: dict[str, ScoredChunk] = {}
+    for ranking in rankings:
+        for rank, sc in enumerate(ranking, start=1):
+            cid = sc.chunk.chunk_id
+            fused[cid] = fused.get(cid, 0.0) + 1 / (k + rank)
+            chunks.setdefault(cid, sc)
+    # sorted() is stable: equal scores keep first-seen order, so results are deterministic.
+    order = sorted(fused, key=fused.__getitem__, reverse=True)
+    return [ScoredChunk(chunks[cid].chunk, fused[cid]) for cid in order]
 
 
 class Reranker(Protocol):
@@ -44,12 +53,19 @@ class CrossEncoderReranker:
         self.model = CrossEncoder(model_name)
 
     def rerank(self, query: str, candidates: list[ScoredChunk]) -> list[ScoredChunk]:
-        """EXERCISE 6. Re-order candidates by cross-encoder relevance, highest first.
+        """Re-order candidates by cross-encoder relevance, highest first.
 
-        self.model.predict(list_of_(query, passage)_pairs) returns one score per pair.
-        Return new ScoredChunks carrying the cross-encoder score. Handle [] input.
+        The returned scores are the cross-encoder's (unbounded logits), replacing the fused
+        RRF scores: they are only comparable within one query.
         """
-        raise NotImplementedError("exercise 6")
+        if not candidates:
+            return []
+        scores = self.model.predict([(query, sc.chunk.text) for sc in candidates])
+        rescored = [
+            ScoredChunk(sc.chunk, float(score))
+            for sc, score in zip(candidates, scores, strict=True)
+        ]
+        return sorted(rescored, key=lambda sc: sc.score, reverse=True)
 
 
 class HybridRetriever:
