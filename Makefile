@@ -54,7 +54,7 @@ docker:
 	  -v $(PWD)/.index:/tmp/idx -e STUDY_RAG_INDEX=/tmp/idx/index.npz \
 	  -e STUDY_RAG_LLM -e ANTHROPIC_API_KEY study-rag
 
-# Your real course files -> S3 -> Lambda reindexes automatically (data/sample excluded).
+# Your real study material (data/sources) -> S3 -> Lambda reindexes automatically.
 upload-docs:
 	@test -n "$(BUCKET)" || (echo "BUCKET not set and no terraform output found" && exit 1)
-	aws s3 sync data/ s3://$(BUCKET)/docs/ --exclude "sample/*" --delete
+	aws s3 sync data/sources/ s3://$(BUCKET)/docs/ --delete

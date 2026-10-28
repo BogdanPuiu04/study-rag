@@ -16,9 +16,16 @@ class GoldenItem:
     must_contain: str
 
 
+def _normalize(text: str) -> str:
+    # PDF extraction breaks lines mid-sentence, so a phrase copied from a PDF viewer
+    # ("vanishing gradient") may be "vanishing\ngradient" in the chunk. Compare with
+    # whitespace collapsed, otherwise real hits count as misses.
+    return " ".join(text.lower().split())
+
+
 def is_relevant(sc: ScoredChunk, item: GoldenItem) -> bool:
     c = sc.chunk
-    return c.source == item.source and item.must_contain.lower() in c.text.lower()
+    return c.source == item.source and _normalize(item.must_contain) in _normalize(c.text)
 
 
 def first_relevant_rank(results: list[ScoredChunk], item: GoldenItem) -> int | None:

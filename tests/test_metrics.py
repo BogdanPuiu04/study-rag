@@ -17,6 +17,10 @@ def test_first_relevant_rank_is_one_based():
     assert first_relevant_rank(results, ITEM) == 3
 
 
+def test_phrase_matches_across_pdf_line_breaks():
+    assert first_relevant_rank([sc("a.md", "by the chain\n  rule we get")], ITEM) == 1
+
+
 def test_first_relevant_rank_none_when_missing():
     assert first_relevant_rank([sc("a.md", "nope")], ITEM) is None
 

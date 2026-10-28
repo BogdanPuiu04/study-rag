@@ -18,7 +18,7 @@ Where the project stands and what comes next. Updated whenever a spec's tasks ch
 ## Next, in order
 
 **Milestone 1: real data, real numbers**
-1. Real courses in `data/<course>/`; 30+ real study questions in `eval/golden.jsonl`.
+1. Real study material in `data/sources/`; 30+ real study questions in `eval/golden.jsonl`.
 2. `make eval` for the README results table (BM25 · hash · BGE · hybrid · rerank · chunk
    sizes 300/800/1500), with one sentence of interpretation under each. Then
    `make baseline` and commit `eval/baseline.json`.

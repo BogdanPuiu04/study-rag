@@ -154,3 +154,10 @@ def test_settings_reject_bad_values_at_startup(monkeypatch):
     monkeypatch.setenv("STUDY_RAG_TOP_K", "0")
     with pytest.raises(ValidationError):
         Settings()
+
+
+def test_pdf_layout_text_is_cleaned_but_keeps_paragraphs():
+    from study_rag.ingest.loaders import _clean_layout
+
+    raw = "  Hierarchical    clustering   is\na  method.\n\n\n\n   Second    paragraph  "
+    assert _clean_layout(raw) == "Hierarchical clustering is\na method.\n\nSecond paragraph"

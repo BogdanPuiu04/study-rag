@@ -22,7 +22,7 @@ runs locally for $0 or on AWS Lambda.
 cross-encoder) · FastAPI · AWS Lambda, S3, CloudWatch · Terraform · GitHub Actions
 
 ```text
- data/<course>/*.md|pdf ──► loader ──► structure-aware chunker ──► embedder (BGE, cached)
+ data/sources/*.md|pdf ──► loader ──► structure-aware chunker ──► embedder (BGE, cached)
                                                                       │
                                                          ┌────────────┴────────────┐
                                                          ▼                         ▼
@@ -38,20 +38,10 @@ cross-encoder) · FastAPI · AWS Lambda, S3, CloudWatch · Terraform · GitHub A
 
 ## Results
 
-Retrieval, scored against `eval/golden.jsonl`. Only measured numbers are reported here.
-
-| Configuration | recall@1 | recall@5 | MRR |
-|---|---|---|---|
-| BM25 only | | | |
-| Vector only (hash baseline) | | | |
-| Vector only (BGE-small) | | | |
-| Hybrid (BGE + BM25, RRF) | | | |
-| Hybrid + cross-encoder rerank | | | |
-
-| Answer quality (LLM judge) | value |
-|---|---|
-| Faithfulness | |
-| Abstention on unanswerable | |
+Measurements on the real course set are in progress. Retrieval (recall@k, MRR) will be
+compared across BM25 only, vector only, hybrid with RRF, and hybrid with reranking; answers
+will be graded for faithfulness and abstention on unanswerable questions. Only measured
+numbers will be reported here.
 
 ## Design decisions
 
@@ -101,11 +91,12 @@ API key), which is what CI runs. Opt in to the real components:
 Configuration is environment variables with the `STUDY_RAG_` prefix, validated at startup
 (see `src/study_rag/config.py`).
 
-## Using your own courses
+## Using your own material
 
-Put files under `data/<course-name>/` (`.md`, `.txt`, `.pdf`). They are git-ignored, because
-course materials are usually copyrighted; only `data/sample/` is committed. Add questions you
-actually had while studying to `eval/golden.jsonl`.
+Put lecture notes, lab sheets, slides and papers in `data/sources/` (`.md`, `.txt`, `.pdf`) and
+run `make ingest DATA=data/sources`. The folder is git-ignored, because course materials are
+usually copyrighted; only `data/sample/` is committed. Add questions you actually had while
+studying to `eval/golden.jsonl`, with `source` set to the file name.
 
 ## Project layout
 
