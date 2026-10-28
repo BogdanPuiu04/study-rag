@@ -74,7 +74,7 @@ jobs:
           terraform_version: "1.10.5"
       - run: terraform fmt -check -recursive
       - run: terraform init -backend=false && terraform validate
-      - uses: terraform-linters/setup-tflint@v4
+      - uses: terraform-linters/setup-tflint@v6
       - run: tflint --init --config "$GITHUB_WORKSPACE/.tflint.hcl"
         env:
           GITHUB_TOKEN: ${{ github.token }}
