@@ -43,7 +43,7 @@ jobs:
             echo "### Answer eval ($(date -u +%F), prompt $(sha256sum prompts/answer_system.md | cut -c1-12))"
             echo '```json'; cat results/summary.json; echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.gate.outputs.run == 'true'
         with:
           name: answer-eval-${{ github.run_id }}
