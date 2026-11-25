@@ -4,7 +4,7 @@
 # Non-HTTP events (S3 uploads) arrive as POST /events.
 
 # --- 1. Resolve exact versions from uv.lock -------------------------------------------
-FROM public.ecr.aws/docker/library/python:3.11-slim AS lock
+FROM public.ecr.aws/docker/library/python:3.15-slim AS lock
 RUN pip install --no-cache-dir uv
 WORKDIR /src
 COPY pyproject.toml uv.lock ./
@@ -17,7 +17,7 @@ RUN uv export --frozen --no-hashes --no-emit-project \
  && grep -vE '^(torch|triton|nvidia-|cuda-)' requirements.txt > requirements.notorch.txt
 
 # --- 2. Runtime image -------------------------------------------------------------------
-FROM public.ecr.aws/docker/library/python:3.11-slim
+FROM public.ecr.aws/docker/library/python:3.15-slim
 
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.8.4 /lambda-adapter /opt/extensions/lambda-adapter
 
